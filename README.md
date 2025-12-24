@@ -1,5 +1,5 @@
 # Hand-Volume-Control
-This is a basic app that ı was trying to do something diffrent
+This is a basic app that i was trying to do something diffrent
 # Hand Gesture Volume Control
 Hand gesture volume control using MediaPipe and OpenCV.
 
