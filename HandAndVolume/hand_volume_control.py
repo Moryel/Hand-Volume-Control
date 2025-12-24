@@ -8,7 +8,7 @@ Features:
 - Media Control (Play/Pause with debounce)
 - Visual Feedback (Volume bar, state indicators, FPS counter)
 
-Author: Lead CV Engineer
+Author: Yuksel
 """
 
 import cv2
@@ -586,3 +586,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
