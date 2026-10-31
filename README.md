@@ -1,11 +1,24 @@
 # Hand-Volume-Control
-This is a basic app that i was trying to do something diffrent
-# Hand Gesture Volume Control
-Hand gesture volume control using MediaPipe and OpenCV.
+
+Control your computer's volume and media playback with hand gestures, using your webcam,
+[MediaPipe](https://developers.google.com/mediapipe) hand tracking and OpenCV.
+
+## Gestures
+
+| Gesture | Action |
+|---|---|
+| ✋ Open palm (all 5 fingers) | **Unlock**: gestures start working |
+| ✊ Fist | **Lock**: gestures are ignored, so normal hand movements don't change anything |
+| 🤏 Pinch (thumb + index) | Change the volume: fingers together = 0%, spread apart = 100% |
+| ✌️ Peace sign (index + middle) | Play / pause media |
+
+The app starts **locked**. Show an open palm first. Press `q` in the video window to quit.
 
 ## Installation
 
 ```bash
+git clone https://github.com/Moryel/Hand-Volume-Control
+cd Hand-Volume-Control/HandAndVolume
 pip install -r requirements.txt
 ```
 
@@ -15,32 +28,30 @@ pip install -r requirements.txt
 python hand_volume_control.py
 ```
 
-**Controls:**
-- Move thumb and index finger closer together → Lower volume
-- Spread thumb and index finger apart → Increase volume
-- Press `q` to quit
+- **macOS:** allow camera access for your terminal app when asked
+  (System Settings → Privacy & Security → Camera). Play/pause also needs
+  Accessibility access for the terminal app.
+- **Windows:** volume is set with `pycaw` (installed automatically on Windows).
+- **Linux:** volume is set with `amixer`, or `pactl` if `amixer` isn't available.
 
-## Features
+## How it works
 
-✅ **OS-Independent**: Works on Windows (pycaw) and Linux (amixer)  
-✅ **Robust Camera Handling**: Auto-fallback from index 0 to 1  
-✅ **MediaPipe Hand Tracking**: High confidence (0.7) to avoid jitter  
-✅ **Smoothing**: Only updates volume if change exceeds threshold  
-✅ **Visual Debugging**: Volume bar, hand skeleton, finger line  
-✅ **Console Logging**: Prints "Volume set to: X%" for debugging
+- **Works at any distance:** the pinch length is divided by the size of your hand
+  (wrist to middle-finger base), so moving closer to or further from the camera
+  doesn't change the volume.
+- **Smooth:** the volume is the average of the last 5 frames, and the system volume
+  is only changed when it moves by 2% or more.
+- **Debounced:** lock/unlock waits 0.5 s between changes, play/pause 1 s.
+- **On screen:** hand skeleton, lock state, volume bar, current gesture and FPS.
+- The hand model (`hand_landmarker.task`) is included; if it's missing it is
+  downloaded next to the script on first run.
 
 ## Requirements
 
-- Python 3.8+
-- Webcam
-- Windows: pycaw for volume control
-- Linux: amixer (ALSA utils)
+- Python 3.9+
+- A webcam
+- Windows, macOS or Linux
 
-## Technical Details
+## License
 
-- **Landmarks Used**: 4 (Thumb tip), 8 (Index tip)
-- **Distance Range**: 30-300 pixels
-- **Volume Range**: 0-100%
-- **Smoothing Threshold**: 3% minimum change
-- **Detection Confidence**: 0.7
-
+MIT, see [LICENSE](LICENSE).

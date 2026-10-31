@@ -1,6 +1,5 @@
 """
-Advanced Hand Gesture Control System
-Lead Computer Vision Engineer Implementation
+Hand Gesture Control System
 
 Features:
 - State Machine (LOCKED/ACTIVE modes with gesture transitions)
@@ -13,8 +12,10 @@ Author: Yuksel
 
 import cv2
 import numpy as np
+import os
 import time
 import platform
+import subprocess
 import sys
 
 # Platform-specific imports
@@ -114,9 +115,9 @@ class GestureDetector:
     def _get_model(self):
         """Download and load the hand landmarker model"""
         import urllib.request
-        import os
-        
-        model_path = "hand_landmarker.task"
+
+        # Keep the model next to this script, wherever it is run from
+        model_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "hand_landmarker.task")
         if not os.path.exists(model_path):
             print("Downloading hand landmarker model...")
             url = "https://storage.googleapis.com/mediapipe-models/hand_landmarker/hand_landmarker/float16/1/hand_landmarker.task"
@@ -278,6 +279,10 @@ class VolumeController:
         # Volume smoothing
         self.volume_history = []
         self.history_size = 5
+
+        # Last volume sent to the system (avoid calling it every frame)
+        self.last_set_volume = None
+        self.min_change = 2
     
     def _init_windows(self):
         """Initialize Windows volume control"""
@@ -297,7 +302,13 @@ class VolumeController:
             self.volume_history.pop(0)
         
         smooth_volume = int(np.mean(self.volume_history))
-        
+
+        # Skip tiny changes so the system isn't called on every frame
+        if (self.last_set_volume is not None and
+                abs(smooth_volume - self.last_set_volume) < self.min_change):
+            return smooth_volume
+        self.last_set_volume = smooth_volume
+
         if self.platform == "Windows" and self.volume_interface:
             try:
                 # Convert to 0.0-1.0 range
@@ -305,21 +316,29 @@ class VolumeController:
                 self.volume_interface.SetMasterVolumeLevelScalar(volume_scalar, None)
             except Exception as e:
                 print(f"Error setting volume: {e}")
-        
-        elif self.platform == "Linux":
+
+        elif self.platform == "Darwin":
             try:
-                # Try amixer first
-                import subprocess
-                subprocess.call(['amixer', '-D', 'pulse', 'sset', 'Master', f'{smooth_volume}%'],
-                              stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-            except:
+                subprocess.run(['osascript', '-e', f'set volume output volume {smooth_volume}'],
+                               stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            except Exception as e:
+                print(f"Error setting volume: {e}")
+
+        elif self.platform == "Linux":
+            # Try amixer first, fall back to pactl if it is missing or fails
+            commands = [
+                ['amixer', '-D', 'pulse', 'sset', 'Master', f'{smooth_volume}%'],
+                ['pactl', 'set-sink-volume', '@DEFAULT_SINK@', f'{smooth_volume}%'],
+            ]
+            for command in commands:
                 try:
-                    # Fallback to pactl
-                    subprocess.call(['pactl', 'set-sink-volume', '@DEFAULT_SINK@', f'{smooth_volume}%'],
-                                  stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-                except:
-                    pass
-        
+                    result = subprocess.run(command, stdout=subprocess.DEVNULL,
+                                            stderr=subprocess.DEVNULL)
+                    if result.returncode == 0:
+                        break
+                except FileNotFoundError:
+                    continue
+
         return smooth_volume
 
 
@@ -468,7 +487,7 @@ def initialize_camera():
 def main():
     """Main application loop"""
     print("=" * 60)
-    print("Advanced Hand Gesture Control System")
+    print("Hand Gesture Control System")
     print("=" * 60)
     print("\nGestures:")
     print("  - Open Palm (5 fingers) → UNLOCK")
@@ -495,7 +514,10 @@ def main():
     
     # FPS tracking
     prev_time = time.time()
-    
+
+    # Last volume set; the bar keeps showing it when the hand is not pinching
+    current_volume = 0
+
     # Main loop
     while True:
         success, frame = cap.read()
@@ -516,7 +538,6 @@ def main():
         prev_time = current_time
         
         # Default values
-        current_volume = 0
         current_gesture = None
         
         # Process hand landmarks
